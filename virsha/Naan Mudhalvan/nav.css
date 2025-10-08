@@ -1,0 +1,64 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background-color: #f4f4f4;
+}
+
+.ticker-wrap {
+    width: 100%;
+    overflow: hidden; /* Hide content that flows outside */
+    background-color: #333;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    height: 50px;
+}
+
+.ticker-content {
+    display: inline-flex; /* Use flex to align items horizontally */
+    white-space: nowrap; /* Prevent items from wrapping */
+    will-change: transform;
+    /* Apply the scrolling animation */
+    animation: scroll-ticker 40s linear infinite; 
+    padding: 0;
+    margin: 0;
+    height: 100%;
+}
+
+.ticker-item {
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+    color: white;
+    font-size: 1.2em;
+    font-weight: bold;
+    border-right: 1px solid #444; /* Separator between items */
+    transition: background-color 0.3s;
+}
+
+.ticker-symbol {
+    margin-right: 10px;
+    color: #bbb;
+}
+
+.ticker-price {
+    margin-right: 15px;
+}
+
+/* Color classes for price changes */
+.price-up {
+    color: #4CAF50; /* Green */
+}
+
+.price-down {
+    color: #F44336; /* Red */
+}
+
+/* Keyframe animation for continuous horizontal scroll */
+@keyframes scroll-ticker {
+    0% { transform: translateX(100%); } /* Start off-screen right */
+    100% { transform: translateX(-100%); } /* End off-screen left */
+}
+
+/* Pause the animation on hover */
+.ticker-content:hover {
+    animation-play-state: paused;
+}

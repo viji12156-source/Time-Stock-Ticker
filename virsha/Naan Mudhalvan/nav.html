@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Time Stack Ticker</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at top, #0a0f2c, #000);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #d1a4ff;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 0 0 15px rgba(209, 164, 255, 0.5);
+        }
+
+        .clock-container, .goal-container, .countdown-display {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px 50px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+            margin-bottom: 20px;
+            width: 380px;
+            max-width: 90%;
+            transition: all 0.5s ease;
+        }
+
+        .time {
+            font-size: 4.5em;
+            color: #00ffff;
+            text-shadow: 0 0 15px #00ffff;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .meta {
+            font-size: 0.9em;
+            color: #ccc;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .countdown-display {
+            border: 2px solid #ff59c7;
+            box-shadow: 0 0 30px rgba(255, 89, 199, 0.3);
+        }
+
+        .countdown-display .label {
+            color: #ff59c7;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .countdown-value {
+            font-size: 2em;
+            color: #ffef00;
+            margin: 10px 0;
+            min-height: 30px; /* To prevent layout shift */
+        }
+        
+        input, button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+        }
+
+        input[type="text"], input[type="datetime-local"] {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        button {
+            background-color: #ff59c7;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #ff85db;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #clearGoalButton {
+            background-color: #444;
+            margin-top: 5px;
+        }
+
+        #clearGoalButton:hover {
+            background-color: #666;
+        }
+
+        .error {
+            color: #ff7070;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Advanced Time Stack Ticker 🚀</h1>
+
+    <div class="clock-container">
+        <div class="label">Current System Time</div>
+        <div id="currentTime" class="time">00:00:00</div>
+        <span class="meta" id="dateMeta"></span>
+        <span class="meta" id="uidMeta"></span>
+    </div>
+
+    <div class="countdown-display">
+        <div class="label" id="countdownTitle">No Goal Set</div>
+        <div class="countdown-value" id="countdownValue">---</div>
+        <div class="meta" id="goalTargetTime"></div>
+        <button id="clearGoalButton" style="display:none;" onclick="clearGoal()">Clear Goal</button>
+    </div>
+
+    <div class="goal-container">
+        <div class="label">Set Your Countdown Goal</div>
+        <input type="text" id="goalTitle" placeholder="Goal Title (e.g., Project Launch)" maxlength="50" />
+        <input type="datetime-local" id="goalTime" />
+        <button onclick="saveGoal()">Save/Update Goal</button>
+        <div class="error" id="errorText"></div>
+    </div>
+
+    <script>
+        // Unique ID for the session/user
+        let UID;
+
+        // --- Utility Functions ---
+
+        /**
+         * Generates a simple, unique ID (simulating a complex UID).
+         * @returns {string} A simple unique ID string.
+         */
+        function generateUID() {
+            return 'TSK-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+        }
+
+        /**
+         * Formats milliseconds into a D H:M:S string.
+         * @param {number} ms - Milliseconds remaining.
+         * @returns {string} Formatted string.
+         */
+        function formatTimeRemaining(ms) {
+            if (ms < 0) return "GOAL REACHED! 🎉";
+
+            const totalSeconds = Math.floor(ms / 1000);
+            const days = Math.floor(totalSeconds / (3600 * 24));
+            const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+
+            // Pad numbers with leading zero if less than 10
+            const h = String(hours).padStart(2, '0');
+            const m = String(minutes).padStart(2, '0');
+            const s = String(seconds).padStart(2, '0');
+
+            if (days > 0) {
+                return `${days} Days, ${h}:${m}:${s}`;
+            }
+            return `${h}:${m}:${s}`;
+        }
+
+        // --- Core Clock Functionality ---
+
+        /**
+         * Updates the current time display and metadata.
+         */
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            document.getElementById('currentTime').textContent = timeStr;
+            document.getElementById('dateMeta').textContent = dateStr;
+            document.getElementById('uidMeta').textContent = 'Session ID: ' + UID;
+        }
+
+        // --- Countdown Functionality ---
+        let countdownInterval;
+
+        /**
+         * Starts or updates the countdown timer based on localStorage.
+         */
+        function startCountdown() {
+            // Stop any existing interval to prevent duplicates
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            
+            const goal = JSON.parse(localStorage.getItem('timeStackGoal'));
+            const countdownTitleEl = document.getElementById('countdownTitle');
+            const countdownValueEl = document.getElementById('countdownValue');
+            const goalTargetTimeEl = document.getElementById('goalTargetTime');
+            const clearButton = document.getElementById('clearGoalButton');
+
+            if (!goal) {
+                countdownTitleEl.textContent = 'No Goal Set';
+                countdownValueEl.textContent = '---';
+                goalTargetTimeEl.textContent = '';
+                clearButton.style.display = 'none';
+                return;
+            }
+
+            const goalDate = new Date(goal.time);
+            countdownTitleEl.textContent = 'Goal: ' + goal.title;
+            goalTargetTimeEl.textContent = 'Target: ' + goalDate.toLocaleString();
+            clearButton.style.display = 'block';
+
+            /**
+             * The function that runs every second to update the countdown.
+             */
+            function updateCountdown() {
+                const now = new Date();
+                const timeRemaining = goalDate.getTime() - now.getTime();
+
+                if (timeRemaining <= 0) {
+                    countdownValueEl.textContent = 'GOAL REACHED! 🎉';
+                    clearInterval(countdownInterval);
+                    // Optional: remove goal from storage once reached, or leave for user to clear
+                } else {
+                    countdownValueEl.textContent = formatTimeRemaining(timeRemaining);
+                }
+            }
+
+            // Run immediately, then every second
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // --- Goal Management ---
+
+        /**
+         * Saves the goal to localStorage and starts the countdown.
+         */
+        function saveGoal() {
+            const goalTitleEl = document.getElementById('goalTitle');
+            const goalTimeEl = document.getElementById('goalTime');
+            const errorTextEl = document.getElementById('errorText');
+
+            const goalTitle = goalTitleEl.value.trim();
+            const goalTime = goalTimeEl.value;
+
+            if (!goalTitle) {
+                errorTextEl.textContent = 'Please enter a goal title.';
+                return;
+            }
+
+            // Ensure a date/time is selected and it's in the future
+            if (!goalTime) {
+                errorTextEl.textContent = 'Please select a date and time.';
+                return;
+            }
+            if (new Date(goalTime) <= new Date()) {
+                errorTextEl.textContent = 'Target time must be in the future.';
+                return;
+            }
+
+            errorTextEl.textContent = '';
+            
+            const goal = {
+                title: goalTitle,
+                time: goalTime 
+            };
+            
+            // Save to browser's persistent storage
+            localStorage.setItem('timeStackGoal', JSON.stringify(goal));
+            
+            // Clear input fields after saving
+            goalTitleEl.value = '';
+            goalTimeEl.value = '';
+
+            // Start the new countdown
+            startCountdown();
+            alert(`Goal Saved: ${goal.title}\nTarget: ${new Date(goal.time).toLocaleString()}`);
+        }
+
+        /**
+         * Clears the goal from localStorage and stops the countdown.
+         */
+        function clearGoal() {
+            if (confirm("Are you sure you want to clear the current goal?")) {
+                localStorage.removeItem('timeStackGoal');
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+                startCountdown(); // Reset display
+                alert("Goal cleared successfully.");
+            }
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Initialize UID
+            UID = generateUID();
+            
+            // 2. Set up clock update loop
+            setInterval(updateClock, 1000);
+            updateClock(); // Initial call to display time immediately
+
+            // 3. Load and start countdown for existing goal
+            startCountdown();
+        });
+    </script>
+</body>
+</html>
